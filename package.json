@@ -4,6 +4,7 @@
   "description": "Read-only CLI for manaba content and downloads.",
   "main": "src/index.js",
   "bin": {
+    "manaba": "bin/manaba-readonly.js",
     "manaba-readonly": "bin/manaba-readonly.js"
   },
   "scripts": {

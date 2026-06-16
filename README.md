@@ -22,15 +22,16 @@ https://manaba.tsukuba.ac.jp/
 ```sh
 npm install
 npx playwright install chromium
-npm link
 
-manaba-readonly courses
-manaba-readonly read home
-manaba-readonly read 12345
-manaba-readonly links 12345
-manaba-readonly downloads 12345
-manaba-readonly download 'https://manaba.tsukuba.ac.jp/doc/...' --out downloads
-manaba-readonly crawl 12345 --out manaba-export
+manaba auth login
+manaba auth status
+manaba courses
+manaba read home
+manaba read 12345
+manaba links 12345
+manaba downloads 12345
+manaba download 'https://manaba.tsukuba.ac.jp/doc/...' --out downloads
+manaba crawl 12345 --out manaba-export
 ```
 
 Targets can be `home`, a numeric course id, `course_12345`, a site-relative
@@ -61,9 +62,27 @@ DOM. It saves:
 Useful options:
 
 ```sh
-manaba-readonly crawl 12345 --out manaba-export --max-pages 500
-manaba-readonly crawl 12345 --no-download
-manaba-readonly crawl home --scope site --max-pages 100
+manaba crawl 12345 --out manaba-export --max-pages 500
+manaba crawl 12345 --no-download
+manaba crawl home --scope site --max-pages 100
+```
+
+## Auth Cache
+
+Run an explicit login once:
+
+```sh
+manaba auth login
+```
+
+The CLI stores Playwright's browser session state in `.manaba-auth/`, not the
+password. The directory is ignored by git.
+
+Check or clear it:
+
+```sh
+manaba auth status
+manaba auth clear
 ```
 
 ## Agent Skills
@@ -80,3 +99,6 @@ To install only the skills:
 ```sh
 scripts/install-skills.sh --skills-only
 ```
+
+The installer links `manaba` and `manaba-readonly` into
+`${MANABA_BIN_DIR:-$HOME/.local/bin}`.

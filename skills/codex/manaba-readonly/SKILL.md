@@ -24,8 +24,7 @@ node bin/manaba-readonly.js --help
 If dependencies are missing:
 
 ```sh
-npm install
-npx playwright install chromium
+scripts/install-skills.sh
 ```
 
 ## Common Commands
@@ -33,35 +32,45 @@ npx playwright install chromium
 List courses:
 
 ```sh
-manaba-readonly courses --json
+manaba courses --json
 ```
 
 Read one page:
 
 ```sh
-manaba-readonly read <target> --json
+manaba read <target> --json
 ```
 
 List links or attachment candidates on one page:
 
 ```sh
-manaba-readonly links <target> --json
-manaba-readonly downloads <target> --json
+manaba links <target> --json
+manaba downloads <target> --json
 ```
 
 Download a known same-origin document URL with authenticated GET:
 
 ```sh
-manaba-readonly download '<url-or-path>' --out downloads
+manaba download '<url-or-path>' --out downloads
 ```
 
 Full course crawl:
 
 ```sh
-manaba-readonly crawl <course-id> --out manaba-export --max-pages 500
+manaba crawl <course-id> --out manaba-export --max-pages 500
 ```
 
 Use `--no-download` when only page text/HTML/JSON should be exported.
+
+Session cache:
+
+```sh
+manaba auth login
+manaba auth status
+manaba auth clear
+```
+
+`auth login` stores Playwright session state in `.manaba-auth/`. It must not store passwords.
 
 ## Crawl Output
 

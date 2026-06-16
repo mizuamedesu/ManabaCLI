@@ -7,17 +7,18 @@ claude_home="${CLAUDE_HOME:-$HOME/.claude}"
 
 usage() {
   cat <<'EOF'
-Usage: scripts/install-skills.sh [--skills-only] [--no-npm-link]
+Usage: scripts/install-skills.sh [--skills-only] [--no-bin-link]
 
 Installs:
   - Codex skill to ${CODEX_HOME:-$HOME/.codex}/skills/manaba-readonly
   - Claude Code skill to ${CLAUDE_HOME:-$HOME/.claude}/skills/manaba-readonly
-  - npm dependencies, Playwright Chromium, and manaba-readonly bin unless --skills-only
+  - npm dependencies, Playwright Chromium, and manaba/manaba-readonly bins unless --skills-only
 EOF
 }
 
 skills_only=0
-npm_link=1
+bin_link=1
+bin_dir="${MANABA_BIN_DIR:-$HOME/.local/bin}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -25,8 +26,8 @@ while [[ $# -gt 0 ]]; do
       skills_only=1
       shift
       ;;
-    --no-npm-link)
-      npm_link=0
+    --no-bin-link)
+      bin_link=0
       shift
       ;;
     -h|--help)
@@ -56,8 +57,10 @@ if [[ "$skills_only" -eq 0 ]]; then
   cd "$repo_root"
   npm install
   npx playwright install chromium
-  if [[ "$npm_link" -eq 1 ]]; then
-    npm link
+  if [[ "$bin_link" -eq 1 ]]; then
+    mkdir -p "$bin_dir"
+    ln -sfn "$repo_root/bin/manaba-readonly.js" "$bin_dir/manaba"
+    ln -sfn "$repo_root/bin/manaba-readonly.js" "$bin_dir/manaba-readonly"
   fi
 fi
 
@@ -66,3 +69,11 @@ Installed Manaba read-only skills:
   Codex:  $codex_home/skills/manaba-readonly
   Claude: $claude_home/skills/manaba-readonly
 EOF
+
+if [[ "$skills_only" -eq 0 && "$bin_link" -eq 1 ]]; then
+  cat <<EOF
+Installed CLI shims:
+  $bin_dir/manaba
+  $bin_dir/manaba-readonly
+EOF
+fi

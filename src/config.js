@@ -24,25 +24,29 @@ function parseKeyText(text) {
 
 function readConfig(options = {}) {
   const keyPath = path.resolve(options.keyPath || process.env.MANABA_KEY || '.key');
-  if (!fs.existsSync(keyPath)) {
+  const keyText = fs.existsSync(keyPath) ? fs.readFileSync(keyPath, 'utf8') : '';
+  if (!keyText && !process.env.MANABA_URL) {
     throw new Error(`key file not found: ${keyPath}`);
   }
 
-  const parsed = parseKeyText(fs.readFileSync(keyPath, 'utf8'));
+  const parsed = parseKeyText(keyText);
+  const url = process.env.MANABA_URL || parsed.URL;
+  if (!url) {
+    throw new Error(`missing URL in ${keyPath}`);
+  }
+
+  const host = new URL(url).host.replace(/[^A-Za-z0-9._-]+/g, '_');
   const config = {
     id: process.env.MANABA_ID || parsed.ID,
     password: process.env.MANABA_PASS || parsed.PASS || parsed.PASSWORD,
-    url: process.env.MANABA_URL || parsed.URL,
+    url,
     keyPath,
+    authStatePath: path.resolve(
+      options.authStatePath ||
+        process.env.MANABA_AUTH_STATE ||
+        path.join('.manaba-auth', `${host}.storage-state.json`),
+    ),
   };
-
-  const missing = [];
-  if (!config.id) missing.push('ID');
-  if (!config.password) missing.push('PASS');
-  if (!config.url) missing.push('URL');
-  if (missing.length) {
-    throw new Error(`missing ${missing.join(', ')} in ${keyPath}`);
-  }
 
   return config;
 }

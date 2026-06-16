@@ -16,6 +16,7 @@ Usage:
   manaba-readonly downloads [target] [--json]
   manaba-readonly download <url> [--out downloads]
   manaba-readonly crawl <target> [--out manaba-export] [--max-pages 500]
+  manaba auth login|status|clear
 
 Targets:
   home                  manaba home
@@ -45,6 +46,8 @@ function parseArgs(argv) {
       args.headed = true;
     } else if (arg === '--key') {
       args.keyPath = argv[++i];
+    } else if (arg === '--auth-state') {
+      args.authStatePath = argv[++i];
     } else if (arg === '--out' || arg === '-o') {
       args.out = argv[++i];
     } else if (arg === '--max-pages') {
@@ -53,6 +56,10 @@ function parseArgs(argv) {
       args.scope = argv[++i];
     } else if (arg === '--no-download') {
       args.noDownload = true;
+    } else if (arg === '--force-login') {
+      args.forceLogin = true;
+    } else if (arg === '--no-auth-cache') {
+      args.noAuthCache = true;
     } else if (arg === '--help' || arg === '-h') {
       args.help = true;
     } else {
@@ -127,8 +134,12 @@ function fileNameFromResponse(response, url) {
 }
 
 async function withClient(args, work) {
-  const config = readConfig({ keyPath: args.keyPath });
-  const client = new ManabaClient(config, { headed: args.headed });
+  const config = readConfig({ keyPath: args.keyPath, authStatePath: args.authStatePath });
+  const client = new ManabaClient(config, {
+    headed: args.headed,
+    forceLogin: args.forceLogin,
+    ignoreAuthState: args.noAuthCache,
+  });
   await client.open();
   try {
     await client.login();
@@ -145,6 +156,42 @@ async function main(argv) {
   if (args.help || !command) {
     printHelp();
     return;
+  }
+
+  if (command === 'auth') {
+    const action = target || 'status';
+    const config = readConfig({ keyPath: args.keyPath, authStatePath: args.authStatePath });
+    if (action === 'status') {
+      const exists = fs.existsSync(config.authStatePath);
+      let valid = false;
+      if (exists) {
+        const client = new ManabaClient(config, {
+          headed: args.headed,
+          ignoreAuthState: args.noAuthCache,
+        });
+        await client.open();
+        try {
+          valid = await client.tryStoredSession();
+        } finally {
+          await client.close();
+        }
+      }
+      console.log(JSON.stringify({ path: config.authStatePath, exists, valid }, null, 2));
+      return;
+    }
+    if (action === 'clear') {
+      const removed = fs.existsSync(config.authStatePath);
+      if (removed) fs.rmSync(config.authStatePath);
+      console.log(JSON.stringify({ path: config.authStatePath, removed }, null, 2));
+      return;
+    }
+    if (action === 'login') {
+      await withClient({ ...args, forceLogin: true }, async (client) => {
+        console.log(JSON.stringify({ path: client.config.authStatePath, saved: true }, null, 2));
+      });
+      return;
+    }
+    throw new Error(`unknown auth action: ${action}`);
   }
 
   if (command === 'courses') {
