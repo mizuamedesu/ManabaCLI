@@ -1,6 +1,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { readConfig } = require('./config');
+const readline = require('node:readline');
+const {
+  DEFAULT_MANABA_URL,
+  normalizeManabaUrl,
+  parseKeyText,
+  readConfig,
+  writeKeyFile,
+} = require('./config');
 const { ManabaClient } = require('./client');
 const { crawl } = require('./crawl');
 const { assertReadOnlyRequest } = require('./safety');
@@ -16,6 +23,7 @@ Usage:
   manaba-readonly downloads [target] [--json]
   manaba-readonly download <url> [--out downloads]
   manaba-readonly crawl <target> [--out manaba-export] [--max-pages 500]
+  manaba auth setup
   manaba auth login|status|clear
 
 Targets:
@@ -48,6 +56,10 @@ function parseArgs(argv) {
       args.keyPath = argv[++i];
     } else if (arg === '--auth-state') {
       args.authStatePath = argv[++i];
+    } else if (arg === '--url') {
+      args.url = argv[++i];
+    } else if (arg === '--id') {
+      args.id = argv[++i];
     } else if (arg === '--out' || arg === '-o') {
       args.out = argv[++i];
     } else if (arg === '--max-pages') {
@@ -67,6 +79,148 @@ function parseArgs(argv) {
     }
   }
   return args;
+}
+
+function promptVisible(question, defaultValue = '', io = {}) {
+  const input = io.input || process.stdin;
+  const output = io.output || process.stdout;
+  const suffix = defaultValue ? ` [${defaultValue}]` : '';
+  if (io.rl) {
+    return new Promise((resolve) => {
+      io.rl.question(`${question}${suffix}: `, (answer = '') => {
+        resolve(answer.trim() || defaultValue);
+      });
+    });
+  }
+  const rl = readline.createInterface({ input, output });
+  return new Promise((resolve) => {
+    rl.question(`${question}${suffix}: `, (answer = '') => {
+      rl.close();
+      resolve(answer.trim() || defaultValue);
+    });
+  });
+}
+
+function promptHidden(question, io = {}) {
+  const input = io.input || process.stdin;
+  const output = io.output || process.stdout;
+
+  if (io.rl) {
+    return new Promise((resolve) => {
+      io.rl.question(`${question}: `, (answer = '') => {
+        resolve(answer);
+      });
+    });
+  }
+
+  if (!input.isTTY || typeof input.setRawMode !== 'function') {
+    const rl = readline.createInterface({ input, output });
+    return new Promise((resolve) => {
+      rl.question(`${question}: `, (answer = '') => {
+        rl.close();
+        resolve(answer);
+      });
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    let value = '';
+    const wasRaw = input.isRaw;
+
+    const cleanup = () => {
+      input.off('keypress', onKeypress);
+      input.setRawMode(wasRaw);
+      input.pause();
+    };
+
+    const onKeypress = (str, key = {}) => {
+      if (key.name === 'return' || key.name === 'enter') {
+        cleanup();
+        output.write('\n');
+        resolve(value);
+        return;
+      }
+      if (key.ctrl && (key.name === 'c' || key.name === 'd')) {
+        cleanup();
+        output.write('\n');
+        reject(new Error('cancelled'));
+        return;
+      }
+      if (key.name === 'backspace') {
+        value = value.slice(0, -1);
+        return;
+      }
+      if (str && !key.ctrl && !key.meta) {
+        value += str;
+      }
+    };
+
+    readline.emitKeypressEvents(input);
+    input.setRawMode(true);
+    input.resume();
+    input.on('keypress', onKeypress);
+    output.write(`${question}: `);
+  });
+}
+
+function createBufferedPrompt(input, output) {
+  const text = fs.readFileSync(input.fd, 'utf8');
+  const lines = text.split(/\r?\n/);
+  let index = 0;
+  return {
+    question(prompt, callback) {
+      output.write(prompt);
+      callback(lines[index++] || '');
+    },
+    close() {},
+  };
+}
+
+async function setupCredentials(args, io = {}) {
+  const keyPath = path.resolve(args.keyPath || process.env.MANABA_KEY || '.key');
+  const existing = fs.existsSync(keyPath) ? parseKeyText(fs.readFileSync(keyPath, 'utf8')) : {};
+  const existingPassword = process.env.MANABA_PASS || existing.PASS || existing.PASSWORD || '';
+  const input = io.input || process.stdin;
+  const output = io.output || process.stdout;
+  const sharedRl =
+    !input.isTTY && !io.rl
+      ? typeof input.fd === 'number'
+        ? createBufferedPrompt(input, output)
+        : readline.createInterface({ input, output })
+      : undefined;
+  const promptIo = sharedRl ? { ...io, rl: sharedRl } : io;
+
+  try {
+    const rawUrl =
+      args.url ||
+      (await promptVisible(
+        'URL',
+        process.env.MANABA_URL || existing.URL || DEFAULT_MANABA_URL,
+        promptIo,
+      ));
+    const url = normalizeManabaUrl(rawUrl);
+
+    const id =
+      args.id ||
+      (await promptVisible('ID', process.env.MANABA_ID || existing.ID || '', promptIo));
+    if (!id) {
+      throw new Error('ID is required');
+    }
+
+    const passwordPrompt = existingPassword ? 'PASS (leave empty to keep current)' : 'PASS';
+    const enteredPassword = await promptHidden(passwordPrompt, promptIo);
+    const password = enteredPassword || existingPassword;
+    if (!password) {
+      throw new Error('PASS is required');
+    }
+
+    const savedPath = writeKeyFile({ id, password, url }, { keyPath });
+    return { keyPath: savedPath, url };
+  } finally {
+    if (sharedRl) {
+      sharedRl.close();
+    }
+  }
 }
 
 function printCourses(courses, json) {
@@ -160,6 +314,12 @@ async function main(argv) {
 
   if (command === 'auth') {
     const action = target || 'status';
+    if (action === 'setup' || action === 'configure') {
+      const saved = await setupCredentials(args);
+      console.log(JSON.stringify({ path: saved.keyPath, url: saved.url, saved: true }, null, 2));
+      return;
+    }
+
     const config = readConfig({ keyPath: args.keyPath, authStatePath: args.authStatePath });
     if (action === 'status') {
       const exists = fs.existsSync(config.authStatePath);
@@ -255,4 +415,6 @@ async function main(argv) {
 module.exports = {
   main,
   parseArgs,
+  promptHidden,
+  setupCredentials,
 };

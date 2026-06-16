@@ -55,7 +55,9 @@ class ManabaClient {
     }
 
     if (!this.config.id || !this.config.password) {
-      throw new Error(`stored auth is unavailable or expired, and ID/PASS are missing in ${this.config.keyPath}`);
+      throw new Error(
+        `stored auth is unavailable or expired, and ID/PASS are missing in ${this.config.keyPath}; run "manaba auth setup"`,
+      );
     }
 
     if ((await username.count()) > 0 && (await password.count()) > 0) {

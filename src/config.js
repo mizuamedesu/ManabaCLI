@@ -1,6 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const DEFAULT_MANABA_URL = 'https://manaba.tsukuba.ac.jp/';
+
 function parseKeyText(text) {
   const config = {};
 
@@ -22,6 +24,37 @@ function parseKeyText(text) {
   return config;
 }
 
+function normalizeManabaUrl(url) {
+  const value = String(url || '').trim();
+  if (!value) {
+    throw new Error('missing URL');
+  }
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `https://${value}`;
+  const parsed = new URL(withScheme);
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`unsupported URL protocol: ${parsed.protocol}`);
+  }
+  return parsed.toString();
+}
+
+function formatKeyText(config) {
+  if (!config.id) {
+    throw new Error('ID is required');
+  }
+  if (!config.password) {
+    throw new Error('PASS is required');
+  }
+  return `ID=${config.id}\nPASS=${config.password}\n\n${normalizeManabaUrl(config.url)}\n`;
+}
+
+function writeKeyFile(config, options = {}) {
+  const keyPath = path.resolve(options.keyPath || process.env.MANABA_KEY || '.key');
+  fs.mkdirSync(path.dirname(keyPath), { recursive: true });
+  fs.writeFileSync(keyPath, formatKeyText(config), { mode: 0o600 });
+  fs.chmodSync(keyPath, 0o600);
+  return keyPath;
+}
+
 function readConfig(options = {}) {
   const keyPath = path.resolve(options.keyPath || process.env.MANABA_KEY || '.key');
   const keyText = fs.existsSync(keyPath) ? fs.readFileSync(keyPath, 'utf8') : '';
@@ -30,10 +63,11 @@ function readConfig(options = {}) {
   }
 
   const parsed = parseKeyText(keyText);
-  const url = process.env.MANABA_URL || parsed.URL;
-  if (!url) {
+  const rawUrl = process.env.MANABA_URL || parsed.URL;
+  if (!rawUrl) {
     throw new Error(`missing URL in ${keyPath}`);
   }
+  const url = normalizeManabaUrl(rawUrl);
 
   const host = new URL(url).host.replace(/[^A-Za-z0-9._-]+/g, '_');
   const config = {
@@ -52,6 +86,10 @@ function readConfig(options = {}) {
 }
 
 module.exports = {
+  DEFAULT_MANABA_URL,
+  formatKeyText,
+  normalizeManabaUrl,
   parseKeyText,
   readConfig,
+  writeKeyFile,
 };

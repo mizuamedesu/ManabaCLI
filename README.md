@@ -8,6 +8,14 @@ downloading files.
 
 ## `.key`
 
+Create or update `.key` interactively:
+
+```sh
+manaba auth setup
+```
+
+You can also write it by hand:
+
 ```text
 ID=your-id
 PASS=your-password
@@ -23,6 +31,7 @@ https://manaba.tsukuba.ac.jp/
 npm install
 npx playwright install chromium
 
+manaba auth setup
 manaba auth login
 manaba auth status
 manaba courses
@@ -68,6 +77,12 @@ manaba crawl home --scope site --max-pages 100
 ```
 
 ## Auth Cache
+
+Set credentials interactively:
+
+```sh
+manaba auth setup
+```
 
 Run an explicit login once:
 

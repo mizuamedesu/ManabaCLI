@@ -65,10 +65,13 @@ Use `--no-download` when only page text/HTML/JSON should be exported.
 Session cache:
 
 ```sh
+manaba auth setup
 manaba auth login
 manaba auth status
 manaba auth clear
 ```
+
+`auth setup` interactively writes `.key`. It prompts for URL, ID, and PASS; do not paste or summarize the saved password.
 
 `auth login` stores Playwright session state in `.manaba-auth/`. It must not store passwords.
 
