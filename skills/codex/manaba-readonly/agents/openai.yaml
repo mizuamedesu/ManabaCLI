@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manaba Read-only"
+  short_description: "Operate ManabaCLI safely in read-only mode."
+  default_prompt: "Use the Manaba read-only CLI to inspect courses, crawl content, and download attachments without submitting or modifying anything."
