@@ -1,0 +1,31 @@
+{
+  "name": "manabacli",
+  "version": "1.0.0",
+  "description": "Read-only CLI for manaba content and downloads.",
+  "main": "src/index.js",
+  "bin": {
+    "manaba-readonly": "bin/manaba-readonly.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mizuamedesu/ManabaCLI.git"
+  },
+  "keywords": [
+    "manaba",
+    "cli",
+    "playwright"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mizuamedesu/ManabaCLI/issues"
+  },
+  "homepage": "https://github.com/mizuamedesu/ManabaCLI#readme",
+  "dependencies": {
+    "playwright": "^1.61.0"
+  }
+}
