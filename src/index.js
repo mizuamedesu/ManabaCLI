@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { readConfig } = require('./config');
 const { ManabaClient } = require('./client');
+const { crawl } = require('./crawl');
 const { assertReadOnlyRequest } = require('./safety');
 const { extractCourseId, safeFileName, scrapeCourses, scrapePage } = require('./scrape');
 
@@ -14,6 +15,7 @@ Usage:
   manaba-readonly links [target] [--json]
   manaba-readonly downloads [target] [--json]
   manaba-readonly download <url> [--out downloads]
+  manaba-readonly crawl <target> [--out manaba-export] [--max-pages 500]
 
 Targets:
   home                  manaba home
@@ -25,6 +27,11 @@ Targets:
 Safety:
   After login, every browser request is guarded. Non-GET/HEAD/OPTIONS requests
   and state-changing GET-looking URLs are blocked.
+
+Crawl:
+  crawl saves rendered HTML, visible text, page JSON, and attachments discovered
+  through DOM links. The default scope is the target course when a course id is
+  present; otherwise it stays on the manaba site.
 `);
 }
 
@@ -40,6 +47,12 @@ function parseArgs(argv) {
       args.keyPath = argv[++i];
     } else if (arg === '--out' || arg === '-o') {
       args.out = argv[++i];
+    } else if (arg === '--max-pages') {
+      args.maxPages = Number(argv[++i]);
+    } else if (arg === '--scope') {
+      args.scope = argv[++i];
+    } else if (arg === '--no-download') {
+      args.noDownload = true;
     } else if (arg === '--help' || arg === '-h') {
       args.help = true;
     } else {
@@ -164,6 +177,27 @@ async function main(argv) {
       const outPath = path.join(outDir, fileNameFromResponse(response, url));
       fs.writeFileSync(outPath, await response.body());
       console.log(outPath);
+    });
+    return;
+  }
+
+  if (command === 'crawl') {
+    if (!target) throw new Error('crawl requires a target, such as a course id');
+    await withClient(args, async (client) => {
+      const manifest = await crawl(client, target, {
+        outDir: args.out || 'manaba-export',
+        maxPages: args.maxPages || 500,
+        scope: args.scope,
+        downloadAttachments: !args.noDownload,
+      });
+      const summary = {
+        out: path.resolve(args.out || 'manaba-export'),
+        pages: manifest.pages.length,
+        attachments: manifest.attachments.length,
+        skipped: manifest.skipped.length,
+        truncated: manifest.truncated,
+      };
+      console.log(JSON.stringify(summary, null, 2));
     });
     return;
   }

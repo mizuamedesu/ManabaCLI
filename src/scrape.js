@@ -22,7 +22,7 @@ function cleanText(value) {
 }
 
 function extractCourseId(url) {
-  const match = String(url || '').match(/\/ct\/course_([^/?#]+)/);
+  const match = String(url || '').match(/\/ct\/course_([^_/?#]+)/);
   return match ? match[1] : '';
 }
 
@@ -30,7 +30,7 @@ function isDownloadLikeUrl(url) {
   const lower = String(url || '').toLowerCase();
   return (
     /\/doc\//i.test(lower) ||
-    /download|file|attachment|contentsfile|material/i.test(lower) ||
+    /download|file|attachment|contentsfile|material|attach/i.test(lower) ||
     DOWNLOAD_EXTENSIONS.some((extension) => lower.split(/[?#]/)[0].endsWith(extension))
   );
 }
@@ -89,17 +89,41 @@ async function scrapePage(page) {
         parentClass: anchor.parentElement ? anchor.parentElement.className || '' : '',
       }))
       .filter((link) => link.url && link.text !== 'English' && !/\/ct\/logout\b/i.test(link.url));
+    const allLinks = [...document.querySelectorAll('a[href]')]
+      .map((anchor) => ({
+        text: clean(anchor.textContent),
+        url: anchor.href,
+        id: anchor.id || '',
+        className: anchor.className || '',
+        parentClass: anchor.parentElement ? anchor.parentElement.className || '' : '',
+        visible: visible(anchor),
+      }))
+      .filter((link) => link.url && link.text !== 'English' && !/\/ct\/logout\b/i.test(link.url));
+    const forms = [...document.forms].map((form) => ({
+      action: form.action,
+      method: form.method || 'get',
+      id: form.id || '',
+      className: form.className || '',
+      controls: [...form.querySelectorAll('input,button,select,textarea')].map((control) => ({
+        tag: control.tagName,
+        type: control.type || '',
+        name: control.name || '',
+        id: control.id || '',
+      })),
+    }));
 
     return {
       title: document.title,
       url: location.href,
       headings,
-      text: clean(main.innerText).slice(0, 20000),
+      text: clean(main.innerText),
       links,
+      allLinks,
+      forms,
     };
   });
 
-  data.downloads = data.links
+  data.downloads = data.allLinks
     .filter((link) => isDownloadLikeUrl(link.url))
     .map((link, index) => ({
       index,

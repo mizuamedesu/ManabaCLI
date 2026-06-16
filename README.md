@@ -28,6 +28,7 @@ manaba-readonly read 12345
 manaba-readonly links 12345
 manaba-readonly downloads 12345
 manaba-readonly download 'https://manaba.tsukuba.ac.jp/doc/...' --out downloads
+manaba-readonly crawl 12345 --out manaba-export
 ```
 
 Targets can be `home`, a numeric course id, `course_12345`, a site-relative
@@ -43,3 +44,22 @@ After authentication, the browser context rejects:
 
 The CLI does not click submit buttons after login. Downloads are fetched through
 an authenticated GET request using Playwright's browser context cookies.
+
+## Full Course Crawl
+
+`crawl` recursively follows safe same-course GET links discovered in the rendered
+DOM. It saves:
+
+- `manifest.json`: page list, attachment list, skipped URLs, and truncation flag
+- `pages/*.html`: rendered DOM from Playwright
+- `pages/*.txt`: full visible text for each page
+- `pages/*.json`: title, URL, headings, links, forms, and attachment candidates
+- `attachments/*`: downloaded same-origin attachment/document URLs
+
+Useful options:
+
+```sh
+manaba-readonly crawl 12345 --out manaba-export --max-pages 500
+manaba-readonly crawl 12345 --no-download
+manaba-readonly crawl home --scope site --max-pages 100
+```

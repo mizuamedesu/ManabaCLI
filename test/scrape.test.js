@@ -4,6 +4,7 @@ const { extractCourseId, isDownloadLikeUrl, safeFileName } = require('../src/scr
 
 test('extractCourseId reads manaba course id', () => {
   assert.equal(extractCourseId('https://manaba.example/ct/course_12345'), '12345');
+  assert.equal(extractCourseId('https://manaba.example/ct/course_12345_page'), '12345');
 });
 
 test('isDownloadLikeUrl detects common file and document URLs', () => {
