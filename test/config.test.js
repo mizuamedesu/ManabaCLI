@@ -21,11 +21,24 @@ test('readConfig derives auth state path from URL without requiring credentials'
   const keyPath = path.join(dir, '.key');
   fs.writeFileSync(keyPath, 'https://manaba.example/\n');
 
-  const config = readConfig({ keyPath });
-  assert.equal(config.url, 'https://manaba.example/');
-  assert.equal(config.id, undefined);
-  assert.equal(config.password, undefined);
-  assert.equal(config.authStatePath, path.resolve('.manaba-auth/manaba.example.storage-state.json'));
+  const previousAuthState = process.env.MANABA_AUTH_STATE;
+  delete process.env.MANABA_AUTH_STATE;
+  try {
+    const config = readConfig({ keyPath });
+    assert.equal(config.url, 'https://manaba.example/');
+    assert.equal(config.id, undefined);
+    assert.equal(config.password, undefined);
+    assert.equal(
+      config.authStatePath,
+      path.join(os.homedir(), '.manaba-auth', 'manaba.example.storage-state.json'),
+    );
+  } finally {
+    if (previousAuthState === undefined) {
+      delete process.env.MANABA_AUTH_STATE;
+    } else {
+      process.env.MANABA_AUTH_STATE = previousAuthState;
+    }
+  }
 });
 
 test('normalizeManabaUrl accepts host-only input', () => {

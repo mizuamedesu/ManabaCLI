@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const DEFAULT_MANABA_URL = 'https://manaba.tsukuba.ac.jp/';
@@ -47,8 +48,20 @@ function formatKeyText(config) {
   return `ID=${config.id}\nPASS=${config.password}\n\n${normalizeManabaUrl(config.url)}\n`;
 }
 
+function resolveKeyPath(options = {}) {
+  return path.resolve(options.keyPath || process.env.MANABA_KEY || path.join(os.homedir(), '.key'));
+}
+
+function resolveAuthStatePath(host, options = {}) {
+  return path.resolve(
+    options.authStatePath ||
+      process.env.MANABA_AUTH_STATE ||
+      path.join(os.homedir(), '.manaba-auth', `${host}.storage-state.json`),
+  );
+}
+
 function writeKeyFile(config, options = {}) {
-  const keyPath = path.resolve(options.keyPath || process.env.MANABA_KEY || '.key');
+  const keyPath = resolveKeyPath(options);
   fs.mkdirSync(path.dirname(keyPath), { recursive: true });
   fs.writeFileSync(keyPath, formatKeyText(config), { mode: 0o600 });
   fs.chmodSync(keyPath, 0o600);
@@ -56,7 +69,7 @@ function writeKeyFile(config, options = {}) {
 }
 
 function readConfig(options = {}) {
-  const keyPath = path.resolve(options.keyPath || process.env.MANABA_KEY || '.key');
+  const keyPath = resolveKeyPath(options);
   const keyText = fs.existsSync(keyPath) ? fs.readFileSync(keyPath, 'utf8') : '';
   if (!keyText && !process.env.MANABA_URL) {
     throw new Error(`key file not found: ${keyPath}`);
@@ -75,11 +88,7 @@ function readConfig(options = {}) {
     password: process.env.MANABA_PASS || parsed.PASS || parsed.PASSWORD,
     url,
     keyPath,
-    authStatePath: path.resolve(
-      options.authStatePath ||
-        process.env.MANABA_AUTH_STATE ||
-        path.join('.manaba-auth', `${host}.storage-state.json`),
-    ),
+    authStatePath: resolveAuthStatePath(host, options),
   };
 
   return config;
@@ -91,5 +100,7 @@ module.exports = {
   normalizeManabaUrl,
   parseKeyText,
   readConfig,
+  resolveAuthStatePath,
+  resolveKeyPath,
   writeKeyFile,
 };

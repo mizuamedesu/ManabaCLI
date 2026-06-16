@@ -3,12 +3,12 @@
 [![技術者倫理 遵守済み](https://img.shields.io/badge/%E6%8A%80%E8%A1%93%E8%80%85%E5%80%AB%E7%90%86-%E9%81%B5%E5%AE%88%E6%B8%88%E3%81%BF-0a0a0a?style=for-the-badge&labelColor=ffffff)](https://技術者倫理.com)
 
 Read-only command line client for manaba. It uses Playwright to sign in with
-the credentials in `.key`, then blocks non-read requests before reading pages or
+the credentials in `~/.key`, then blocks non-read requests before reading pages or
 downloading files.
 
-## `.key`
+## `~/.key`
 
-Create or update `.key` interactively:
+Create or update `~/.key` interactively:
 
 ```sh
 manaba auth setup
@@ -23,7 +23,9 @@ PASS=your-password
 https://manaba.tsukuba.ac.jp/
 ```
 
-`.key` is ignored by git.
+By default, credentials are shared across working directories. Set
+`MANABA_KEY=/path/to/.key` or pass `--key /path/to/.key` if you need a separate
+credential file.
 
 ## Usage
 
@@ -90,8 +92,10 @@ Run an explicit login once:
 manaba auth login
 ```
 
-The CLI stores Playwright's browser session state in `.manaba-auth/`, not the
-password. The directory is ignored by git.
+The CLI stores Playwright's browser session state in `~/.manaba-auth/`, not the
+password, so one explicit login can be reused from any working directory. Set
+`MANABA_AUTH_STATE=/path/to/state.json` or pass `--auth-state /path/to/state.json`
+if you need a separate cache.
 
 Check or clear it:
 

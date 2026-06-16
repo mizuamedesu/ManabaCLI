@@ -6,6 +6,7 @@ const {
   normalizeManabaUrl,
   parseKeyText,
   readConfig,
+  resolveKeyPath,
   writeKeyFile,
 } = require('./config');
 const { ManabaClient } = require('./client');
@@ -177,7 +178,7 @@ function createBufferedPrompt(input, output) {
 }
 
 async function setupCredentials(args, io = {}) {
-  const keyPath = path.resolve(args.keyPath || process.env.MANABA_KEY || '.key');
+  const keyPath = resolveKeyPath({ keyPath: args.keyPath });
   const existing = fs.existsSync(keyPath) ? parseKeyText(fs.readFileSync(keyPath, 'utf8')) : {};
   const existingPassword = process.env.MANABA_PASS || existing.PASS || existing.PASSWORD || '';
   const input = io.input || process.stdin;
