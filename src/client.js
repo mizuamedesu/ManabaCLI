@@ -139,6 +139,57 @@ class ManabaClient {
     return this.page;
   }
 
+  async withTemporaryMutation(rule, work) {
+    const previous = this.readOnlyState.allowedMutations || [];
+    this.readOnlyState.allowedMutations = [...previous, rule];
+    try {
+      return await work();
+    } finally {
+      this.readOnlyState.allowedMutations = previous;
+    }
+  }
+
+  async submitFormControl(target, controlName) {
+    await this.goto(target);
+    const control = this.page
+      .locator(`input[name="${controlName}"], button[name="${controlName}"]`)
+      .first();
+    await control.waitFor({ state: 'attached', timeout: 10000 });
+
+    const form = await control.evaluate((element) => {
+      if (!element.form) return null;
+      return {
+        action: element.form.action || window.location.href,
+        method: element.form.method || 'get',
+      };
+    });
+    if (!form) {
+      throw new Error(`control is not inside a form: ${controlName}`);
+    }
+    if (String(form.method).toUpperCase() !== 'POST') {
+      throw new Error(`expected POST form for ${controlName}, got ${form.method}`);
+    }
+
+    await this.withTemporaryMutation(
+      { method: 'POST', url: form.action, formField: controlName },
+      async () => {
+        await Promise.all([
+          this.page
+            .waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 })
+            .catch(() => undefined),
+          control.click(),
+        ]);
+        await this.page.waitForLoadState('networkidle', { timeout: 60000 }).catch(() => undefined);
+      },
+    );
+
+    return this.page;
+  }
+
+  async startQuery(target) {
+    return this.submitFormControl(target, 'action_QueryStudent_querystart');
+  }
+
   async downloadGet(url) {
     const resolved = this.resolveTarget(url);
     assertReadOnlyRequest('GET', resolved);

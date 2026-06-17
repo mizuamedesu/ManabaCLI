@@ -22,6 +22,7 @@ Usage:
   manaba-readonly read [target] [--json]
   manaba-readonly links [target] [--json]
   manaba-readonly downloads [target] [--json]
+  manaba-readonly query-start <target> [--json]
   manaba-readonly download <url> [--out downloads]
   manaba-readonly crawl <target> [--out manaba-export] [--max-pages 500]
   manaba auth setup
@@ -37,6 +38,8 @@ Targets:
 Safety:
   After login, every browser request is guarded. Non-GET/HEAD/OPTIONS requests
   and state-changing GET-looking URLs are blocked.
+  query-start is an explicit opt-in exception for the manaba quiz start POST
+  only; answer submission POSTs remain blocked.
 
 Crawl:
   crawl saves rendered HTML, visible text, page JSON, and attachments discovered
@@ -370,6 +373,15 @@ async function main(argv) {
       if (command === 'read') printPage(pageData, args.json);
       if (command === 'links') printLinks(pageData, args.json, false);
       if (command === 'downloads') printLinks(pageData, args.json, true);
+    });
+    return;
+  }
+
+  if (command === 'query-start') {
+    if (!target) throw new Error('query-start requires a quiz/query target URL or path');
+    await withClient(args, async (client) => {
+      await client.startQuery(target);
+      printPage(await scrapePage(client.page), args.json);
     });
     return;
   }

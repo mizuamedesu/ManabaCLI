@@ -26,6 +26,22 @@ function assertReadOnlyRequest(method, url) {
   }
 }
 
+function postDataHasField(postData, fieldName) {
+  const params = new URLSearchParams(String(postData || ''));
+  if (params.has(fieldName)) return true;
+  return String(postData || '').includes(`${encodeURIComponent(fieldName)}=`);
+}
+
+function isAllowedMutationRequest(request, rules = []) {
+  return rules.some((rule) => {
+    const method = String(rule.method || 'POST').toUpperCase();
+    if (request.method().toUpperCase() !== method) return false;
+    if (rule.url && request.url() !== rule.url) return false;
+    if (rule.formField && !postDataHasField(request.postData(), rule.formField)) return false;
+    return true;
+  });
+}
+
 async function installReadOnlyRoute(context, state) {
   await context.route('**/*', async (route) => {
     const request = route.request();
@@ -38,6 +54,10 @@ async function installReadOnlyRoute(context, state) {
       assertReadOnlyRequest(request.method(), request.url());
       await route.continue();
     } catch {
+      if (isAllowedMutationRequest(request, state.allowedMutations || [])) {
+        await route.continue();
+        return;
+      }
       await route.abort('blockedbyclient');
     }
   });
@@ -47,6 +67,7 @@ module.exports = {
   DANGEROUS_GET_PATTERNS,
   assertReadOnlyRequest,
   installReadOnlyRoute,
+  isAllowedMutationRequest,
   isDangerousGetUrl,
   isSafeMethod,
 };

@@ -41,6 +41,7 @@ manaba read home
 manaba read 12345
 manaba links 12345
 manaba downloads 12345
+manaba query-start 'https://manaba.tsukuba.ac.jp/ct/course_12345_query_67890' --json
 manaba download 'https://manaba.tsukuba.ac.jp/doc/...' --out downloads
 manaba crawl 12345 --out manaba-export
 ```
@@ -58,6 +59,11 @@ After authentication, the browser context rejects:
 
 The CLI does not click submit buttons after login. Downloads are fetched through
 an authenticated GET request using Playwright's browser context cookies.
+
+`query-start` is an explicit opt-in exception for starting a manaba quiz/query.
+It temporarily allows only the target form's `action_QueryStudent_querystart`
+POST, then restores the read-only guard before scraping the resulting page.
+Answer submission and other state-changing POSTs remain blocked.
 
 ## Full Course Crawl
 
